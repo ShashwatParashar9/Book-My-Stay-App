@@ -15,7 +15,7 @@
  * * @author Developer
  * @version 1.0
  */
-public class B1P1RA2411003010721 {
+public class BookMyStayApp {
 
     /**
      * Application entry point.
