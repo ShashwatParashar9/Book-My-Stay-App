@@ -1,96 +1,118 @@
-import java.util.HashMap;
 import java.util.Map;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 
 /**
- * Domain Model: Represents physical room characteristics.
+ * --- Book My Stay App: Use Case 4 ---
+ * This file contains the Domain Model, Inventory, Search Service,
+ * and the Main execution class.
  */
+
+// --- Domain Model ---
 class Room {
     private String type;
     private int beds;
-    private int size;
-    private double price;
+    private int size; // in sqft
+    private double pricePerNight;
 
-    public Room(String type, int beds, int size, double price) {
+    public Room(String type, int beds, int size, double pricePerNight) {
         this.type = type;
         this.beds = beds;
         this.size = size;
-        this.price = price;
+        this.pricePerNight = pricePerNight;
     }
 
     public String getType() { return type; }
     public int getBeds() { return beds; }
     public int getSize() { return size; }
-    public double getPrice() { return price; }
+    public double getPricePerNight() { return pricePerNight; }
+
+    public void displayDetails(int availableCount) {
+        System.out.println(type + " Room:");
+        System.out.println("Beds: " + beds);
+        System.out.println("Size: " + size + " sqft");
+        System.out.println("Price per night: " + pricePerNight);
+        System.out.println("Available: " + availableCount);
+        System.out.println();
+    }
 }
 
-/**
- * Logic Layer: Acts as the Single Source of Truth for availability.
- */
+// --- Inventory Management ---
 class RoomInventory {
-    // Key -> Room type name | Value -> Available room count
-    private Map<String, Integer> roomAvailability;
+    private Map<String, Integer> availability = new HashMap<>();
 
-    public RoomInventory() {
-        roomAvailability = new HashMap<>();
-        initializeInventory();
+    public void updateInventory(String type, int count) {
+        availability.put(type, count);
     }
 
     /**
-     * Centralized setup replaces scattered variables from previous use cases.
+     * Provides read-only access to the current availability state.
      */
-    private void initializeInventory() {
-        roomAvailability.put("Single Room", 5);
-        roomAvailability.put("Double Room", 3);
-        roomAvailability.put("Suite Room", 2);
-    }
-
     public Map<String, Integer> getRoomAvailability() {
-        return roomAvailability;
-    }
-
-    /**
-     * Controlled update method to ensure state consistency.
-     */
-    public void updateAvailability(String roomType, int count) {
-        roomAvailability.put(roomType, count);
+        // Returning a copy or the reference for read-only purposes
+        return new HashMap<>(availability);
     }
 }
 
+// --- Search Service ---
 /**
- * Main Application Class
- * Version 3.0
+ * Use Case 4: Room Search & Availability Check
+ * Focuses on read-only access and defensive filtering.
  */
-public class BookMyStayAPP {
+class RoomSearchService {
+
+    /**
+     * Displays available rooms along with their details and pricing.
+     * Performs read-only access to inventory and room data.
+     */
+    public void searchAvailableRooms(
+            RoomInventory inventory,
+            Room singleRoom,
+            Room doubleRoom,
+            Room suiteRoom) {
+
+        System.out.println("Room Search Results");
+        System.out.println("-------------------");
+
+        Map<String, Integer> availability = inventory.getRoomAvailability();
+
+        // Check and display Single Room availability
+        if (availability.getOrDefault("Single", 0) > 0) {
+            singleRoom.displayDetails(availability.get("Single"));
+        }
+
+        // Check and display Double Room availability
+        if (availability.getOrDefault("Double", 0) > 0) {
+            doubleRoom.displayDetails(availability.get("Double"));
+        }
+
+        // Check and display Suite Room availability
+        if (availability.getOrDefault("Suite", 0) > 0) {
+            suiteRoom.displayDetails(availability.get("Suite"));
+        }
+    }
+}
+
+// --- Main Application Entry Point ---
+public class BookMyStayAPP{
 
     public static void main(String[] args) {
-        // 1. Initialize Room Characteristics (Domain)
-        List<Room> roomCatalog = new ArrayList<>();
-        roomCatalog.add(new Room("Single Room", 1, 250, 1500.0));
-        roomCatalog.add(new Room("Double Room", 2, 400, 2500.0));
-        roomCatalog.add(new Room("Suite Room", 3, 750, 5000.0));
+        // 1. Initialize Room Definitions (Domain Objects)
+        Room single = new Room("Single", 1, 250, 1500.0);
+        Room doubleRm = new Room("Double", 2, 400, 2500.0);
+        Room suite = new Room("Suite", 3, 750, 5000.0);
 
-        // 2. Initialize Centralized Inventory
+        // 2. Initialize and Populate Inventory
         RoomInventory inventory = new RoomInventory();
+        inventory.updateInventory("Single", 5);
+        inventory.updateInventory("Double", 3);
+        inventory.updateInventory("Suite", 2);
 
-        // Update Suite Room to 3 to reflect the latest status
-        inventory.updateAvailability("Suite Room", 3);
+        // 3. Perform Room Search
+        RoomSearchService searchService = new RoomSearchService();
 
-        // 3. Display Inventory Status
-        System.out.println("Hotel Room Inventory Status\n");
+        // The Search Service reads data but does not modify the inventory object
+        searchService.searchAvailableRooms(inventory, single, doubleRm, suite);
 
-        for (Room room : roomCatalog) {
-            String type = room.getType();
-            // O(1) Lookup complexity using HashMap
-            Integer count = inventory.getRoomAvailability().get(type);
-
-            System.out.println(type + ":");
-            System.out.println("Beds: " + room.getBeds());
-            System.out.println("Size: " + room.getSize() + " sqft");
-            System.out.println("Price per night: " + room.getPrice());
-            System.out.println("Available Rooms: " + (count != null ? count : 0));
-            System.out.println();
-        }
+        System.out.println("Search complete. System state remains unchanged.");
     }
 }
