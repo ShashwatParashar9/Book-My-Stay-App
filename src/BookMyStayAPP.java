@@ -1,10 +1,12 @@
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 /**
- * CLASS - Reservation
- * Represents a guest’s intent to book a room.
+ * --- Book My Stay App: Use Case 6 ---
+ * This file contains the Reservation model, RoomInventory,
+ * RoomAllocationService, and the Main execution class.
  */
+
+// 1. Supporting Class: Reservation
 class Reservation {
     private String guestName;
     private String roomType;
@@ -18,61 +20,113 @@ class Reservation {
     public String getRoomType() { return roomType; }
 }
 
-/**
- * CLASS - BookingRequestQueue
- * Manages booking requests using a FIFO queue.
- */
-class BookingRequestQueue {
-    private Queue<Reservation> requestQueue;
+// 2. Supporting Class: RoomInventory
+class RoomInventory {
+    private Map<String, Integer> inventory = new HashMap<>();
 
-    public BookingRequestQueue() {
-        this.requestQueue = new LinkedList<>();
+    public void addInventory(String roomType, int count) {
+        inventory.put(roomType, count);
     }
 
-    /** Adds a booking request to the end of the queue. */
-    public void addRequest(Reservation reservation) {
-        requestQueue.offer(reservation);
+    public boolean isAvailable(String roomType) {
+        return inventory.getOrDefault(roomType, 0) > 0;
     }
 
-    /** Retrieves and removes the head of the queue. */
-    public Reservation getNextRequest() {
-        return requestQueue.poll();
-    }
-
-    /** Checks if there are requests waiting to be processed. */
-    public boolean hasPendingRequests() {
-        return !requestQueue.isEmpty();
+    public void decrementInventory(String roomType) {
+        int current = inventory.getOrDefault(roomType, 0);
+        if (current > 0) {
+            inventory.put(roomType, current - 1);
+        }
     }
 }
 
 /**
- * MAIN CLASS - UseCase5BookingRequestQueue
- * Demonstrates the First-Come-First-Served booking logic.
+ * CLASS - RoomAllocationService
+ * Responsible for assigning unique IDs and preventing double-booking.
  */
-public class BookMyStayAPP{
+class RoomAllocationService {
+
+    private Set<String> allocatedRoomIds;
+    private Map<String, Set<String>> assignedRoomsByType;
+
+    public RoomAllocationService() {
+        this.allocatedRoomIds = new HashSet<>();
+        this.assignedRoomsByType = new HashMap<>();
+    }
+
+    /**
+     * Confirms a booking request by assigning a unique room ID
+     * and updating inventory immediately.
+     */
+    public void allocateRoom(Reservation reservation, RoomInventory inventory) {
+        String type = reservation.getRoomType();
+
+        if (inventory.isAvailable(type)) {
+            // Generate unique ID
+            String roomId = generateRoomId(type);
+
+            // Record the ID to prevent reuse (Uniqueness Enforcement)
+            allocatedRoomIds.add(roomId);
+
+            // Map the room type to the assigned room
+            assignedRoomsByType.putIfAbsent(type, new HashSet<>());
+            assignedRoomsByType.get(type).add(roomId);
+
+            // Update inventory immediately (Atomic Logical Operation)
+            inventory.decrementInventory(type);
+
+            System.out.println("Booking confirmed for Guest: " + reservation.getGuestName() +
+                    ", Room ID: " + roomId);
+        } else {
+            System.out.println("Booking failed for Guest: " + reservation.getGuestName() +
+                    " - No " + type + " rooms available.");
+        }
+    }
+
+    /**
+     * Generates a unique room ID for the given room type.
+     * Simple logic: Type + (Current Count in that type + 1)
+     */
+    private String generateRoomId(String roomType) {
+        int count = assignedRoomsByType.getOrDefault(roomType, new HashSet<>()).size() + 1;
+        String newId = roomType + "-" + count;
+
+        // Ensure the ID is truly unique in the global set
+        while (allocatedRoomIds.contains(newId)) {
+            count++;
+            newId = roomType + "-" + count;
+        }
+        return newId;
+    }
+}
+
+/**
+ * MAIN CLASS - UseCase6RoomAllocation
+ * Demonstrates the FIFO processing and safe allocation.
+ */
+public class BookMyStayAPP {
 
     public static void main(String[] args) {
-        // 1. Display application header
-        System.out.println("Booking Request Queue");
+        System.out.println("Room Allocation Processing");
 
-        // 2. Initialize booking queue
-        BookingRequestQueue bookingQueue = new BookingRequestQueue();
+        // Setup Inventory
+        RoomInventory hotelInventory = new RoomInventory();
+        hotelInventory.addInventory("Single", 5);
+        hotelInventory.addInventory("Suite", 2);
 
-        // 3. Create booking requests (Simulating guest intent)
-        Reservation r1 = new Reservation("Abhi", "Single");
-        Reservation r2 = new Reservation("Subha", "Double");
-        Reservation r3 = new Reservation("Vanmathi", "Suite");
+        // Setup Services
+        RoomAllocationService allocationService = new RoomAllocationService();
+        Queue<Reservation> bookingQueue = new LinkedList<>();
 
-        // 4. Add requests to the queue (Insertion order is preserved)
-        bookingQueue.addRequest(r1);
-        bookingQueue.addRequest(r2);
-        bookingQueue.addRequest(r3);
+        // Simulating dequing requests from Use Case 5 (FIFO Order)
+        bookingQueue.add(new Reservation("Abhi", "Single"));
+        bookingQueue.add(new Reservation("Subha", "Single"));
+        bookingQueue.add(new Reservation("Vanmathi", "Suite"));
 
-        // 5. Process and display queued booking requests in FIFO order
-        while (bookingQueue.hasPendingRequests()) {
-            Reservation current = bookingQueue.getNextRequest();
-            System.out.println("Processing booking for Guest: " + current.getGuestName() +
-                    ", Room Type: " + current.getRoomType());
+        // Process the queue
+        while (!bookingQueue.isEmpty()) {
+            Reservation currentRequest = bookingQueue.poll();
+            allocationService.allocateRoom(currentRequest, hotelInventory);
         }
     }
 }
