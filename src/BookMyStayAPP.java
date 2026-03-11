@@ -1,99 +1,111 @@
 import java.util.*;
 
 /**
- * --- Book My Stay App: Use Case 7 ---
- * This file implements the Add-On Service Selection logic.
+ * --- Book My Stay App: Use Case 8 ---
+ * This file implements historical tracking and reporting features.
  */
 
-// 1. CLASS - Service
-// Represents an individual optional offering like Breakfast or Spa.
-class Service {
-    private String serviceName;
-    private double cost;
+// 1. Supporting Class: Reservation
+class Reservation {
+    private String guestName;
+    private String roomType;
 
-    public Service(String serviceName, double cost) {
-        this.serviceName = serviceName;
-        this.cost = cost;
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
     }
 
-    public String getServiceName() {
-        return serviceName;
-    }
-
-    public double getCost() {
-        return cost;
-    }
+    public String getGuestName() { return guestName; }
+    public String getRoomType() { return roomType; }
 }
 
-// 2. CLASS - AddOnServiceManager
-// Manages the association between Reservation IDs and their selected services.
-class AddOnServiceManager {
+/**
+ * CLASS - BookingHistory
+ * Maintains a persistent record of confirmed reservations in memory.
+ */
+class BookingHistory {
     /**
-     * Maps reservation ID to selected services.
-     * Key -> Reservation ID (e.g., "Single-1")
-     * Value -> List of selected services
+     * List that stores confirmed reservations.
+     * ArrayList is chosen because it preserves insertion order (FIFO)
+     * and provides efficient sequential access for reports.
      */
-    private Map<String, List<Service>> servicesByReservation;
+    private List<Reservation> confirmedReservations;
 
-    public AddOnServiceManager() {
-        this.servicesByReservation = new HashMap<>();
+    /**
+     * Initializes an empty booking history.
+     */
+    public BookingHistory() {
+        this.confirmedReservations = new ArrayList<>();
     }
 
     /**
-     * Attaches a service to a reservation.
-     * Uses computeIfAbsent to initialize the list if it doesn't exist.
+     * Adds a confirmed reservation to booking history.
+     * @param reservation confirmed booking
      */
-    public void addService(String reservationId, Service service) {
-        servicesByReservation
-                .computeIfAbsent(reservationId, k -> new ArrayList<>())
-                .add(service);
+    public void addReservation(Reservation reservation) {
+        confirmedReservations.add(reservation);
     }
 
     /**
-     * Calculates total add-on cost for a reservation.
-     * Iterates through the list of services mapped to the ID.
+     * Returns all confirmed reservations.
+     * @return list of reservations
      */
-    public double calculateTotalServiceCost(String reservationId) {
-        List<Service> services = servicesByReservation.get(reservationId);
-        if (services == null || services.isEmpty()) {
-            return 0.0;
-        }
-
-        double total = 0.0;
-        for (Service s : services) {
-            total += s.getCost();
-        }
-        return total;
+    public List<Reservation> getConfirmedReservations() {
+        return new ArrayList<>(confirmedReservations); // Return copy to protect internal state
     }
 }
 
 /**
- * MAIN CLASS - UseCase7AddOnServiceSelection
- * Demonstrates attaching services to a confirmed booking.
+ * CLASS - BookingReportService
+ * Generates summaries and reports from stored booking data.
+ */
+class BookingReportService {
+    /**
+     * Displays a summary report of all confirmed bookings.
+     * This method decouples data storage from data presentation.
+     * * @param history booking history object
+     */
+    public void generateReport(BookingHistory history) {
+        List<Reservation> records = history.getConfirmedReservations();
+
+        System.out.println("\nBooking History Report");
+
+        if (records.isEmpty()) {
+            System.out.println("No records found.");
+            return;
+        }
+
+        for (Reservation res : records) {
+            System.out.println("Guest: " + res.getGuestName() +
+                    ", Room Type: " + res.getRoomType());
+        }
+    }
+}
+
+/**
+ * MAIN CLASS - UseCase8BookingHistoryReport
+ * Demonstrates the ordered audit trail and reporting.
  */
 public class BookMyStayAPP {
 
+    /**
+     * Application entry point.
+     * @param args Command-line arguments
+     */
     public static void main(String[] args) {
-        System.out.println("Add-On Service Selection");
+        System.out.println("Booking History and Reporting");
 
-        // 1. Initialize the Manager
-        AddOnServiceManager serviceManager = new AddOnServiceManager();
+        // Initialize History and Reporting Services
+        BookingHistory history = new BookingHistory();
+        BookingReportService reportService = new BookingReportService();
 
-        // 2. Define a Reservation ID (obtained from Use Case 6)
-        String reservationId = "Single-1";
+        // Simulate successful bookings being added to history
+        // In a full system, these would be added after Use Case 6 allocation logic
+        history.addReservation(new Reservation("Abhi", "Single"));
+        history.addReservation(new Reservation("Subha", "Double"));
+        history.addReservation(new Reservation("Vanmathi", "Suite"));
 
-        // 3. Create Add-On Services
-        Service breakfast = new Service("Breakfast", 500.0);
-        Service spa = new Service("Spa", 1000.0);
-
-        // 4. Attach services to the reservation
-        serviceManager.addService(reservationId, breakfast);
-        serviceManager.addService(reservationId, spa);
-
-        // 5. Output results
-        double totalCost = serviceManager.calculateTotalServiceCost(reservationId);
-
-        System.out.println("Reservation ID: " + reservationId);
-        System.out.println("Total Add-On Cost: " + totalCost);
+        // Generate the final report
+        reportService.generateReport(history);
     }
 }
